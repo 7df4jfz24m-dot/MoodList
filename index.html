@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Moodlist — Ta playlist, ton moment</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ── RESET & BASE ───────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --purple:      #7F77DD;
+      --purple-light:#EEEDFE;
+      --purple-dark: #534AB7;
+      --teal:        #1D9E75;
+      --teal-light:  #E1F5EE;
+      --bg:          #F7F7FA;
+      --surface:     #FFFFFF;
+      --text:        #1A1A2E;
+      --text-muted:  #6B6B80;
+      --border:      rgba(0,0,0,0.08);
+      --radius-sm:   8px;
+      --radius-md:   12px;
+      --radius-lg:   20px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ─────────────────────────────────────── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--purple);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .logo-name {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .logo-name span { color: var(--purple); }
+
+    .platform-badges {
+      display: flex;
+      gap: 8px;
+    }
+
+    .badge {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .badge:hover { border-color: var(--purple); color: var(--purple); }
+
+    .badge.connected {
+      border-color: #1DB954;
+      color: #1DB954;
+      background: #edfff4;
+    }
+
+    .btn-connect {
+      padding: 8px 18px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      background: var(--purple);
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      transition: background 0.2s, transform 0.1s;
+      text-decoration: none;
+    }
+    .btn-connect:hover  { background: var(--purple-dark); }
+    .btn-connect:active { transform: scale(0.97); }
+
+    /* ── HERO ────────────────────────────────────────── */
+    .hero {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem 2rem;
+      text-align: center;
+    }
+
+    .hero-eyebrow {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--purple);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .hero h1 {
+      font-size: 2.4rem;
+      font-weight: 600;
+      line-height: 1.2;
+      color: var(--text);
+      margin-bottom: 1rem;
+    }
+
+    .hero h1 em {
+      font-style: normal;
+      color: var(--purple);
+    }
+
+    .hero-sub {
+      font-size: 16px;
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+
+    /* ── PROMPT BOX ──────────────────────────────────── */
+    .prompt-wrapper {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 1.5rem 2rem;
+    }
+
+    .prompt-box {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      transition: border-color 0.2s;
+    }
+
+    .prompt-box:focus-within {
+      border-color: var(--purple);
+    }
+
+    .prompt-box textarea {
+      width: 100%;
+      border: none;
+      outline: none;
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      color: var(--text);
+      background: transparent;
+      resize: none;
+      line-height: 1.6;
+    }
+
+    .prompt-box textarea::placeholder {
+      color: var(--text-muted);
+    }
+
+    .prompt-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .chip.mood     { background: var(--purple-light); color: var(--purple-dark); }
+    .chip.duration { background: var(--teal-light);   color: var(--teal); }
+    .chip.context  { background: #FFF3E0; color: #E65100; }
+
+    .btn-generate {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--purple);
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .btn-generate:hover  { background: var(--purple-dark); }
+    .btn-generate:active { transform: scale(0.97); }
+
+    /* ── MOODS RAPIDES ───────────────────────────────── */
+    .section {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 1.5rem 2.5rem;
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    .moods-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .mood-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.15s;
+      text-align: center;
+    }
+
+    .mood-card:hover {
+      border-color: var(--purple);
+      transform: translateY(-2px);
+    }
+
+    .mood-icon  { font-size: 26px; margin-bottom: 6px; }
+    .mood-label { font-size: 13px; font-weight: 600; color: var(--text); }
+    .mood-desc  { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+
+    /* ── COMMENT ÇA MARCHE ───────────────────────────── */
+    .how-section {
+      background: var(--purple-light);
+      padding: 3rem 1.5rem;
+    }
+
+    .how-inner {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    .how-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--purple-dark);
+      margin-bottom: 1.5rem;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .step {
+      background: var(--surface);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+    }
+
+    .step-num {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--purple);
+      margin-bottom: 8px;
+    }
+
+    .step-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .step-desc  { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+    /* ── FOOTER ──────────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 2rem;
+      font-size: 12px;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ══ HEADER ══════════════════════════════════════ -->
+  <header>
+    <a class="logo" href="#">
+      <div class="logo-icon">🎵</div>
+      <span class="logo-name">mood<span>list</span></span>
+    </a>
+    <div style="display:flex; align-items:center; gap:16px;">
+      <div class="platform-badges">
+        <a class="badge" href="spotify.html" style="text-decoration:none;">Spotify</a>
+        <a class="badge" href="deezer.html" style="text-decoration:none;">Deezer</a>
+        <a class="badge" href="apple-music.html" style="text-decoration:none;">Apple Music</a>
+        <a class="badge" href="youtube-music.html" style="text-decoration:none;">YouTube Music</a>
+      </div>
+      <button class="btn-connect" onclick="handleConnect()">Se connecter</button>
+    </div>
+  </header>
+
+  <!-- ══ HERO ════════════════════════════════════════ -->
+  <section class="hero">
+    <p class="hero-eyebrow">Powered by tes goûts</p>
+    <h1>Décris ton moment,<br>on crée ta <em>playlist</em>.</h1>
+    <p class="hero-sub">
+      Plus besoin de chercher. Dis-nous comment tu te sens,<br>
+      on analyse tes écoutes et on génère la playlist parfaite — rien que pour toi.
+    </p>
+  </section>
+
+  <!-- ══ PROMPT BOX ═══════════════════════════════════ -->
+  <div class="prompt-wrapper">
+    <div class="prompt-box">
+      <textarea
+        id="prompt-input"
+        rows="3"
+        placeholder="Ex : Une playlist chill pour 3h de route, je rentre chez moi ce soir 🌙"
+      ></textarea>
+      <div class="prompt-footer">
+        <div class="chips" id="chips-container">
+          <!-- Les chips apparaissent dynamiquement ici (plus tard avec JS) -->
+        </div>
+        <button class="btn-generate" onclick="handleGenerate()">
+          ✨ Générer ma playlist
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ MOODS RAPIDES ════════════════════════════════ -->
+  <section class="section">
+    <p class="section-title">Ou choisis un mood</p>
+    <div class="moods-grid">
+      <div class="mood-card" onclick="setMood('Une playlist chill pour me détendre 🌙')">
+        <div class="mood-icon">🌙</div>
+        <div class="mood-label">Chill</div>
+        <div class="mood-desc">Soirée ou route</div>
+      </div>
+      <div class="mood-card" onclick="setMood('Une playlist énergique pour faire du sport 💪')">
+        <div class="mood-icon">💪</div>
+        <div class="mood-label">Motivation</div>
+        <div class="mood-desc">Sport & productivité</div>
+      </div>
+      <div class="mood-card" onclick="setMood('Une playlist douce pour bien commencer la journée 🌅')">
+        <div class="mood-icon">🌅</div>
+        <div class="mood-label">Morning</div>
+        <div class="mood-desc">Réveil en douceur</div>
+      </div>
+      <div class="mood-card" onclick="setMood('Une playlist festive pour une soirée entre amis 🎉')">
+        <div class="mood-icon">🎉</div>
+        <div class="mood-label">Fête</div>
+        <div class="mood-desc">Ambiance festive</div>
+      </div>
+      <div class="mood-card" onclick="setMood('Une playlist calme pour me concentrer et travailler 🎯')">
+        <div class="mood-icon">🎯</div>
+        <div class="mood-label">Focus</div>
+        <div class="mood-desc">Concentration</div>
+      </div>
+      <div class="mood-card" onclick="setMood('Une playlist mélancolique pour les moments de feelings 💔')">
+        <div class="mood-icon">💔</div>
+        <div class="mood-label">Feelings</div>
+        <div class="mood-desc">Émotions à fleur</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ COMMENT ÇA MARCHE ════════════════════════════ -->
+  <div class="how-section">
+    <div class="how-inner">
+      <p class="how-title">Comment ça marche ?</p>
+      <div class="steps">
+        <div class="step">
+          <p class="step-num">01 — Connecte</p>
+          <p class="step-title">Relie ton streaming</p>
+          <p class="step-desc">Spotify, Deezer, Apple Music ou YouTube Music. On lit ton historique d'écoute.</p>
+        </div>
+        <div class="step">
+          <p class="step-num">02 — Décris</p>
+          <p class="step-title">Dis-nous ton moment</p>
+          <p class="step-desc">En quelques mots : ton mood, ta durée, ton contexte. Pas besoin d'être précis.</p>
+        </div>
+        <div class="step">
+          <p class="step-num">03 — Profite</p>
+          <p class="step-title">La playlist t'attend</p>
+          <p class="step-desc">On la génère en quelques secondes et l'envoie directement dans ton appli.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ FOOTER ════════════════════════════════════════ -->
+  <footer>
+    Moodlist — Ta musique, ton moment. &nbsp;·&nbsp; Projet en cours de développement 🚀
+  </footer>
+
+  <!-- ══ JAVASCRIPT (logique de base) ════════════════ -->
+  <script>
+    // Quand l'utilisateur clique sur un mood rapide,
+    // on remplit le textarea avec la phrase correspondante
+    function setMood(text) {
+      const input = document.getElementById('prompt-input');
+      input.value = text;
+      input.focus();
+      // Scroll vers le prompt pour que l'utilisateur le voie
+      input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function handleConnect() {
+      alert('Connexion à venir !\n\nProchaine étape : choisir une plateforme et se connecter.');
+    }
+
+    // Quand l'utilisateur clique sur "Générer"
+    function handleGenerate() {
+      const input = document.getElementById('prompt-input');
+      const text = input.value.trim();
+
+      if (!text) {
+        alert('Décris ton moment d\'abord 🎵');
+        return;
+      }
+
+      // Pour l'instant : message temporaire
+      // (Plus tard : on appellera l'API Spotify ici)
+      alert('🎵 Génération en cours...\n\nProchaine étape : connexion à l\'API Spotify !');
+    }
+  </script>
+
+</body>
+</html>
