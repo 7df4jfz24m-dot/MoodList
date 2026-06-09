@@ -479,18 +479,26 @@
       }
     }
 
-    // ── Affiche le nom de l'utilisateur connecté ──
+    // ── Affiche le nom de l'utilisateur connecté + sauvegarde son pays ──
     async function showUser(token) {
       const res  = await fetch('https://api.spotify.com/v1/me', {
         headers: { Authorization: 'Bearer ' + token }
       });
       const user = await res.json();
 
+      // Sauvegarde le marché de l'utilisateur pour les appels API
+      if (user.country) localStorage.setItem('spotify_market', user.country);
+
       const btn = document.getElementById('connect-btn');
       btn.textContent = '✓ ' + user.display_name;
       btn.style.background = '#158A3E';
       btn.style.cursor = 'default';
       btn.onclick = null;
+    }
+
+    // ── Retourne le marché de l'utilisateur (son pays Spotify) ──
+    function getUserMarket() {
+      return localStorage.getItem('spotify_market') || 'FR';
     }
 
     // ── Affiche un bouton "Reconnexion nécessaire" ──
@@ -548,7 +556,7 @@
         const token = localStorage.getItem('spotify_token');
         if (!token) return;
 
-        const res  = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=artist&limit=6&market=US`, {
+        const res  = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=artist&limit=6&market=${getUserMarket()}`, {
           headers: { Authorization: 'Bearer ' + token }
         });
         if (!res.ok) return;
@@ -690,38 +698,47 @@
     // ── Cherche des morceaux via l'API Search ──
     async function getRecommendations(token, artistIds, genreNames, mood) {
       const tracks = [];
-
-      // Offset aléatoire pour varier les résultats à chaque génération
-      const offset = Math.floor(Math.random() * 40);
+      const market = getUserMarket();
 
       if (artistIds.length > 0) {
         // Mode artiste : top tracks officiels via l'ID Spotify
         for (const artistId of artistIds) {
-          // Top tracks de l'artiste
-          const res = await fetch(`https://api.spotify.com/v1/artists/${artistId}/top-tracks?market=US`, {
+          // Top tracks de l'artiste (avec le marché de l'utilisateur)
+          const res = await fetch(`https://api.spotify.com/v1/artists/${artistId}/top-tracks?market=${market}`, {
             headers: { Authorization: 'Bearer ' + token }
           });
           if (res.ok) {
             const data = await res.json();
             if (data.tracks) tracks.push(...data.tracks);
+          } else {
+            console.warn(`top-tracks ${artistId} → ${res.status}`);
           }
 
-          // Featurings : recherche et filtre uniquement les sons où l'artiste apparaît
+          // Featurings : recherche par nom et filtre sur l'ID exact
           const artistInfo = await fetch(`https://api.spotify.com/v1/artists/${artistId}`, {
             headers: { Authorization: 'Bearer ' + token }
           });
           if (artistInfo.ok) {
             const artist     = await artistInfo.json();
-            const artistName = artist.name.toLowerCase();
-            const featRes    = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(artistName)}&type=track&limit=20&market=US`, {
-              headers: { Authorization: 'Bearer ' + token }
-            });
-            if (featRes.ok) {
-              const featData = await featRes.json();
-              const feats    = (featData.tracks?.items || []).filter(t =>
-                t.artists.some(a => a.id === artistId)
-              );
-              tracks.push(...feats);
+            const artistName = artist.name;
+            // Deux recherches : nom seul + "feat nom"
+            const queries = [
+              encodeURIComponent(artistName),
+              encodeURIComponent('feat ' + artistName),
+            ];
+            for (const q of queries) {
+              const featRes = await fetch(`https://api.spotify.com/v1/search?q=${q}&type=track&limit=20&market=${market}`, {
+                headers: { Authorization: 'Bearer ' + token }
+              });
+              if (featRes.ok) {
+                const featData = await featRes.json();
+                const feats    = (featData.tracks?.items || []).filter(t =>
+                  t.artists.some(a => a.id === artistId)
+                );
+                tracks.push(...feats);
+              } else {
+                console.warn(`search feat ${q} → ${featRes.status}`);
+              }
             }
           }
         }
@@ -730,7 +747,7 @@
         const sources = genreNames.length > 0 ? genreNames : [mood.searchGenre];
         for (const source of sources.slice(0, 3)) {
           const query = encodeURIComponent(source + ' ' + mood.moodKeyword);
-          const res   = await fetch(`https://api.spotify.com/v1/search?q=${query}&type=track&limit=10&offset=${Math.floor(Math.random() * 40)}&market=US`, {
+          const res   = await fetch(`https://api.spotify.com/v1/search?q=${query}&type=track&limit=10&offset=${Math.floor(Math.random() * 40)}&market=${market}`, {
             headers: { Authorization: 'Bearer ' + token }
           });
           if (res.ok) {
