@@ -695,73 +695,73 @@
       return data.items.map(a => a.id);
     }
 
-    // ── Cherche des morceaux via l'API Search ──
-    async function getRecommendations(token, artistIds, genreNames, mood) {
+    // ── Transforme un résultat iTunes en format simple et uniforme ──
+    function normaliseItunes(r) {
+      return {
+        id:      r.trackId,
+        name:    r.trackName,
+        artist:  r.artistName,
+        // On agrandit la pochette (100x100 → 200x200)
+        image:   (r.artworkUrl100 || '').replace('100x100', '200x200'),
+        url:     r.trackViewUrl,
+        preview: r.previewUrl,
+      };
+    }
+
+    // ── Appelle l'API publique iTunes (gratuite, sans clé) ──
+    async function itunesSearch(term, { artistOnly = false, limit = 25 } = {}) {
+      const country = getUserMarket(); // ex: FR
+      let url = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}`
+              + `&entity=song&limit=${limit}&country=${country}`;
+      if (artistOnly) url += '&attribute=artistTerm';
+
+      try {
+        const res  = await fetch(url);
+        if (!res.ok) { console.warn(`iTunes ${term} → ${res.status}`); return []; }
+        const data = await res.json();
+        return (data.results || []).map(normaliseItunes);
+      } catch (e) {
+        console.warn('iTunes erreur réseau:', e);
+        return [];
+      }
+    }
+
+    // ── Cherche des morceaux via l'API iTunes ──
+    async function getRecommendations(artistNames, genreNames, mood) {
       const tracks = [];
-      const market = getUserMarket();
 
-      if (artistIds.length > 0) {
-        // Mode artiste : top tracks officiels via l'ID Spotify
-        for (const artistId of artistIds) {
-          // Top tracks de l'artiste (avec le marché de l'utilisateur)
-          const res = await fetch(`https://api.spotify.com/v1/artists/${artistId}/top-tracks?market=${market}`, {
-            headers: { Authorization: 'Bearer ' + token }
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.tracks) tracks.push(...data.tracks);
-          } else {
-            console.warn(`top-tracks ${artistId} → ${res.status}`);
-          }
+      if (artistNames.length > 0) {
+        // Mode artiste : on récupère SES morceaux + SES featurings
+        for (const name of artistNames) {
+          const lower = name.toLowerCase();
 
-          // Featurings : recherche par nom et filtre sur l'ID exact
-          const artistInfo = await fetch(`https://api.spotify.com/v1/artists/${artistId}`, {
-            headers: { Authorization: 'Bearer ' + token }
-          });
-          if (artistInfo.ok) {
-            const artist     = await artistInfo.json();
-            const artistName = artist.name;
-            // Deux recherches : nom seul + "feat nom"
-            const queries = [
-              encodeURIComponent(artistName),
-              encodeURIComponent('feat ' + artistName),
-            ];
-            for (const q of queries) {
-              const featRes = await fetch(`https://api.spotify.com/v1/search?q=${q}&type=track&limit=20&market=${market}`, {
-                headers: { Authorization: 'Bearer ' + token }
-              });
-              if (featRes.ok) {
-                const featData = await featRes.json();
-                const feats    = (featData.tracks?.items || []).filter(t =>
-                  t.artists.some(a => a.id === artistId)
-                );
-                tracks.push(...feats);
-              } else {
-                console.warn(`search feat ${q} → ${featRes.status}`);
-              }
-            }
-          }
+          // 1) Ses propres chansons (filtre sur le nom d'artiste)
+          const own = await itunesSearch(name, { artistOnly: true, limit: 25 });
+          tracks.push(...own);
+
+          // 2) Recherche large pour attraper les featurings,
+          //    on garde seulement ceux où son nom apparaît (artiste ou titre)
+          const broad = await itunesSearch(name, { limit: 25 });
+          const feats = broad.filter(t =>
+            (t.artist || '').toLowerCase().includes(lower) ||
+            (t.name   || '').toLowerCase().includes(lower)
+          );
+          tracks.push(...feats);
         }
       } else {
-        // Mode genre : pas d'artiste sélectionné, on cherche par genre/mood
+        // Mode genre/mood : pas d'artiste sélectionné
         const sources = genreNames.length > 0 ? genreNames : [mood.searchGenre];
         for (const source of sources.slice(0, 3)) {
-          const query = encodeURIComponent(source + ' ' + mood.moodKeyword);
-          const res   = await fetch(`https://api.spotify.com/v1/search?q=${query}&type=track&limit=10&offset=${Math.floor(Math.random() * 40)}&market=${market}`, {
-            headers: { Authorization: 'Bearer ' + token }
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.tracks?.items) tracks.push(...data.tracks.items);
-          }
+          const results = await itunesSearch(source + ' ' + mood.moodKeyword, { limit: 15 });
+          tracks.push(...results);
         }
       }
 
-      // Dédoublonne par URI et limite à 20 morceaux
+      // Dédoublonne par id et limite à 20 morceaux
       const seen = new Set();
       return tracks.filter(t => {
-        if (seen.has(t.uri)) return false;
-        seen.add(t.uri);
+        if (!t.id || seen.has(t.id)) return false;
+        seen.add(t.id);
         return true;
       }).slice(0, 20);
     }
@@ -778,10 +778,10 @@
       list.innerHTML    = '';
 
       tracks.forEach((track, i) => {
-        const img     = track.album?.images?.[2]?.url || track.album?.images?.[0]?.url || '';
-        const name    = track.name;
-        const artist  = track.artists.map(a => a.name).join(', ');
-        const url     = track.external_urls.spotify;
+        const img    = track.image || '';
+        const name   = track.name;
+        const artist = track.artist;
+        const url    = track.url;
 
         list.innerHTML += `
           <div class="track-card">
@@ -819,11 +819,10 @@
 
         // 2. Récupérer les artistes et genres sélectionnés
         const artistNames = selectedArtists.map(a => a.name);
-        const artistIds   = selectedArtists.map(a => a.id);
         const genreNames  = getSelectedTags('genres-tags');
 
-        // 3. Obtenir les morceaux
-        const tracks = await getRecommendations(token, artistIds, genreNames, mood);
+        // 3. Obtenir les morceaux (via iTunes)
+        const tracks = await getRecommendations(artistNames, genreNames, mood);
 
         btn.textContent = '✨ Générer ma playlist';
         btn.disabled = false;
